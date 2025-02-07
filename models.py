@@ -55,3 +55,21 @@ class ProductReview(db.Model):
     review = db.Column(db.Text, nullable=False)
     rating = db.Column(db.Numeric(3, 2), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Cart(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship to access the items in the cart
+    items = db.relationship('CartItem', backref='cart', lazy=True)
+
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    cart_id = db.Column(db.Integer, db.ForeignKey('cart.id', ondelete='CASCADE'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id', ondelete='CASCADE'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+
+    # Relationships for easier access
+    product = db.relationship('Product', backref='cart_items', lazy=True)

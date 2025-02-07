@@ -60,6 +60,33 @@ def delete_product(id):
     db.session.commit()
     return jsonify({'detail': 'product deleted'}), HTTP_200_OK
 
+@product_bp.patch('/edit-product/<int:id>')
+@jwt_required()
+def edit_product(id):
+    email = get_jwt_identity()
+    user = User.query.filter_by(email=email).first()
+    if not user.is_admin:
+        return jsonify({'detail': 'You dont have permission to perform this command.'}), HTTP_403_FORBIDDEN
+    product = Product.query.filter_by(id=id).first_or_404()
+    data = request.form
+    
+    if 'name' in data:
+        product.name = data['name']
+    if 'description' in data:
+        product.description = data['description']
+    if 'quantity' in data:
+        product.quantity = data['quantity']
+    if 'price' in data:
+        product.price = data['price']
+    if 'category' in data:
+        product.category = data['category']
+    if 'brand' in data:
+        product.brand = data['brand']
+            
+    
+    db.session.commit()
+    return jsonify({'detail': 'Product updated successfully'}), 200
+
 @product_bp.get('/get-categories')
 def get_categories():
     # Query to get all distinct categories
@@ -88,7 +115,41 @@ def get_product(id):
     }
     return jsonify(product=serialized_product), HTTP_200_OK
 
+@product_bp.get('/category/<string:category_name>')
+def get_products_by_category(category_name):
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
 
+    # Query the database for products in the given category and paginate the results
+    products_pagination = Product.query.filter_by(category=category_name).paginate(page=page, per_page=per_page)
+
+    # Serialize the paginated items
+    product_list = [
+        {
+            'id': product.id,
+            'name': product.name,
+            'description': product.description,
+            'price': float(product.price),
+            "rating": product.avg_rating,
+            'quantity': product.quantity,
+            'category': product.category,
+            'brand': product.brand,
+            'image': [product_image.image_path for product_image in ProductImage.query.filter_by(product_id=product.id)][0]} 
+            
+            for product in products_pagination.items]
+
+    
+
+    # Return the paginated response
+    return jsonify({
+        'products': product_list,
+        'total': products_pagination.total,
+        'pages': products_pagination.pages,
+        'current_page': products_pagination.page,
+        'per_page': products_pagination.per_page,
+        "has_next": products_pagination.has_next,
+        "has_prev": products_pagination.has_prev
+    }), HTTP_200_OK
 
 @product_bp.get('/search-product')
 def search_product():
@@ -105,6 +166,8 @@ def search_product():
 
     products = [{"id": product.id, "name": product.name, 
                  "description": product.description, 
+                 "rating": product.avg_rating,
+                 "price": product.price,
                  'image': [product_image.image_path for product_image in ProductImage.query.filter_by(product_id=product.id)][0]} for product in results.items]
 
     return jsonify({
