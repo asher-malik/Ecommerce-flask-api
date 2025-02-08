@@ -41,6 +41,7 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow) 
     images = db.relationship('ProductImage', backref='product', lazy=True)
     product_review = db.relationship('ProductReview', backref='product', lazy=True)
+    cart_items = db.relationship('CartItem', backref='product', lazy=True)
 
 class ProductImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -59,6 +60,9 @@ class ProductReview(db.Model):
 class Cart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
+    session_id = db.Column(db.String(255), nullable=True)  # For non-authenticated users
+    total_price = db.Column(db.Numeric(10, 2), default=0)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -70,6 +74,3 @@ class CartItem(db.Model):
     cart_id = db.Column(db.Integer, db.ForeignKey('cart.id', ondelete='CASCADE'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id', ondelete='CASCADE'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
-
-    # Relationships for easier access
-    product = db.relationship('Product', backref='cart_items', lazy=True)
