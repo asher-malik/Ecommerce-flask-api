@@ -151,6 +151,41 @@ def get_products_by_category(category_name):
         "has_prev": products_pagination.has_prev
     }), HTTP_200_OK
 
+@product_bp.get('/all-products')
+def get_all_products():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    # Fetch distinct categories
+    categories = db.session.query(Product.category).distinct().all()
+    categories = [category[0] for category in categories]  # Extract category names from tuples
+
+    # Create a dictionary to group products by category
+    products_by_category = {}
+
+    for category in categories:
+        # Query products for each category with pagination
+        products = Product.query.filter_by(category=category).paginate(page=page, per_page=per_page, error_out=False)
+        products_by_category[category] = [
+            {
+                "id": product.id,
+                "name": product.name,
+                "description": product.description,
+                "image": ProductImage.query.filter_by(product_id=product.id).first().image_path,
+                "quantity": product.quantity,
+                "price": float(product.price),
+                "category": product.category,
+                "brand": product.brand,
+                "avg_rating": float(product.avg_rating) if product.avg_rating else 0,
+            }
+            for product in products.items
+        ]
+
+    # Return the products grouped by category
+    return jsonify({
+        "products": products_by_category,
+    }), 200
+
 @product_bp.get('/search-product')
 def search_product():
     query = request.args.get('q', '')
