@@ -62,7 +62,7 @@ def register():
 
 
 
-@account.get('/activate/<string:token>')
+@account.patch('/activate/<string:token>')
 def activate_account(token):
     email = confirm_token(token)
     if not email:
@@ -76,6 +76,37 @@ def activate_account(token):
             user.is_admin = True
         db.session.commit()
         return jsonify({'detail': 'Account activated'}), HTTP_200_OK
+
+@account.post('/send-password-reset')
+def send_password_reset_link():
+    email = request.json['email']
+    token = generate_token(email)
+    send_email(to=email, subject="Reset Password", body=f'Click the link to reset your password: {request.host_url}api/account/change-password/{token}')
+    return jsonify({'detail': 'A link has been sent to your email address to reset your password.'})
+
+
+
+@account.patch('/change-password/<string:token>')
+def change_password(token):
+    email = confirm_token(token)
+    if not email:
+        return jsonify({'detail': 'invalid token'}), HTTP_400_BAD_REQUEST
+    password = request.json['password']
+    confirm_password = request.json['confirm_password']
+
+    if len(password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), HTTP_400_BAD_REQUEST
+    if password.isdigit():
+        return jsonify({'error': 'Password is entirely numeric'}), HTTP_400_BAD_REQUEST
+    if ' ' in password:
+        return jsonify({'error': 'No spaces'}), HTTP_400_BAD_REQUEST
+    if password != confirm_password:
+        return jsonify({'error': 'Password must match'}), HTTP_400_BAD_REQUEST
+    
+    user = User.query.filter_by(email=email).first_or_404()
+    user.password = generate_password_hash(password, salt_length=8)
+    db.session.commit()
+    return jsonify({'detail': 'password changed successfully'}), HTTP_200_OK
 
 
 @account.post('/login')

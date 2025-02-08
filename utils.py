@@ -18,7 +18,7 @@ def generate_token(email):
     serializer = URLSafeTimedSerializer(os.getenv('SECRET_KEY'))
     return serializer.dumps(email, salt='python-flask')
 
-def confirm_token(token, expiration=3600):
+def confirm_token(token, expiration=600):
     serializer = URLSafeTimedSerializer(os.getenv('SECRET_KEY'))
     try:
         email = serializer.loads(
