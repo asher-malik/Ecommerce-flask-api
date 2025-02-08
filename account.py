@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, session
 from flask_jwt_extended import (create_access_token, 
                                 get_jwt_identity, 
                                 jwt_required, 
@@ -178,6 +178,7 @@ def google_login_success():
 def logout():
     jti = get_jwt()["jti"]  # Get the unique identifier (JTI) of the token
     blacklist.add(jti)
+    session.clear()
     return jsonify({"detail": "Successfully logged out"}), 200
 
 
