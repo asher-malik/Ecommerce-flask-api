@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from models import db
 from account import account
 from product import product_bp
+from cart import cart_bp
 from blacklist import jwt
 from social_logins import google_bp
 from http_status_code import *
@@ -35,6 +36,8 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["JWT_SECRET_KEY"] = "Hgdehebffddgns)(snsdndmnsmams)"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=3)
 
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)  # Optional
+
 # Configuration for Flask-Mail
 app.config['MAIL_SERVER'] = os.getenv('EMAIL_HOST')
 app.config['MAIL_PORT'] = os.getenv('EMAIL_PORT')
@@ -54,6 +57,7 @@ jwt.init_app(app)
 
 app.register_blueprint(account)
 app.register_blueprint(product_bp)
+app.register_blueprint(cart_bp)
 
 
 app.register_blueprint(google_bp, url_prefix="/login")
