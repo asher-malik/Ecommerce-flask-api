@@ -27,7 +27,7 @@ def create_product():
     quantity = request.form['quantity']
     price = request.form['price']
     category = request.form['category'].lower()
-    brand = request.form['brand']
+    brand = request.form['brand'].lower()
 
     product = Product(name=name, description=description,
                       quantity=quantity, price=price, category=category, brand=brand)
@@ -90,12 +90,12 @@ def edit_product(id):
 @product_bp.get('/get-categories')
 def get_categories():
     # Query to get all distinct categories
-    categories = db.session.query(Product.category).distinct().all()
+    categories_slug = db.session.query(Product.category_slug).distinct().all()
     # Convert the result into a list of strings
-    category_list = [category[0] for category in categories]
+    category_slug_list = [category[0] for category in categories_slug]
 
     return jsonify({
-        "categories": category_list
+        "categories": category_slug_list
     }), HTTP_200_OK
 
 @product_bp.get('/get-product/<int:id>')
@@ -115,13 +115,13 @@ def get_product(id):
     }
     return jsonify(product=serialized_product), HTTP_200_OK
 
-@product_bp.get('/category/<string:category_name>')
-def get_products_by_category(category_name):
+@product_bp.get('/category/<string:category_slug>')
+def get_products_by_category(category_slug):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
     # Query the database for products in the given category and paginate the results
-    products_pagination = Product.query.filter_by(category=category_name).paginate(page=page, per_page=per_page)
+    products_pagination = Product.query.filter_by(category_slug=category_slug).paginate(page=page, per_page=per_page)
 
     # Serialize the paginated items
     product_list = [
@@ -213,5 +213,7 @@ def search_product():
         "has_next": results.has_next,
         "has_prev": results.has_prev
     })
+
+
 
 
