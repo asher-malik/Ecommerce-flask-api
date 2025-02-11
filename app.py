@@ -6,6 +6,7 @@ from models import db
 from account import account
 from product import product_bp
 from cart import cart_bp
+from order import order_bp
 from blacklist import jwt
 from social_logins import google_bp
 from http_status_code import *
@@ -28,7 +29,9 @@ app = Flask(__name__)
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER')
 
 # CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///eshop.db"
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -51,13 +54,14 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 db.init_app(app)
 mail.init_app(app)
 
-migrate = Migrate(app, db)
+migrate = Migrate(app, db, render_as_batch=True)
 jwt.init_app(app)
 
 
 app.register_blueprint(account)
 app.register_blueprint(product_bp)
 app.register_blueprint(cart_bp)
+app.register_blueprint(order_bp)
 
 
 app.register_blueprint(google_bp, url_prefix="/login")
