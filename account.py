@@ -11,7 +11,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import validators
 from http_status_code import *
-from models import User, db, Address
+from models import User, db, Order, OrderItem, Product, ProductImage
 from blacklist import blacklist
 from social_logins import google_bp
 from utils import generate_token, send_email, confirm_token, ALLOWED_EXTENSIONS, allowed_file
@@ -160,6 +160,8 @@ def google_login_success():
                     is_active=1
                     )
         db.session.add(user)
+        db.session.flush()
+        user.is_admin = True if user.id == 1 else False
         db.session.commit()
 
     # Generate a JWT token for the user
@@ -180,77 +182,6 @@ def logout():
     blacklist.add(jti)
     session.clear()
     return jsonify({"detail": "Successfully logged out"}), 200
-
-
-@account.post('/add-address')
-@jwt_required()
-def add_address():
-    email = get_jwt_identity()
-    user_id = User.query.filter_by(email=email).first().id
-    # Get all the columns of Address dynamically
-    address_data = request.json
-
-    # Ensure all required fields are present
-    required_fields = ['full_name', 'street', 'city', 'state', 'zip_code', 'country', 'phone_number']
-    for field in required_fields:
-        if field not in address_data:
-            return {"message": f"{field} is required"}, 400
-        
-    address_data['user_id'] = user_id
-
-    # Create a new Address instance with the data
-    new_address = Address(**address_data)
-
-    # Add to the session and commit to save
-    db.session.add(new_address)
-    db.session.commit()
-
-    return {"message": "Address added successfully", "address": address_data}, 201
-
-@account.patch('/edit-address/<int:id>')
-@jwt_required()
-def edit_address(id):
-    email = get_jwt_identity()
-    current_user = User.query.filter_by(email=email).first()
-
-    # Find the address by ID and check ownership
-    address = Address.query.filter_by(id=id, user_id=current_user.id).first()
-    if not address:
-        return jsonify({'error': 'Address not found or unauthorized'}), 404
-
-    # Parse and update only the provided fields
-    data = request.json
-    if 'full_name' in data:
-        address.full_name = data['full_name']
-    if 'street' in data:
-        address.street = data['street']
-    if 'city' in data:
-        address.city = data['city']
-    if 'state' in data:
-        address.state = data['state']
-    if 'zip_code' in data:
-        address.zip_code = data['zip_code']
-    if 'country' in data:
-        address.country = data['country']
-    if 'phone_number' in data:
-        address.phone_number = data['phone_number']
-
-    db.session.commit()
-    return jsonify({'detail': 'Address updated successfully'}), 200
-
-
-@account.delete('/delete-address/<int:id>')
-@jwt_required()
-def delete_address(id):
-    email = get_jwt_identity()
-    current_user = User.query.filter_by(email=email).first()
-    # Find the address by ID and check ownership
-    address = Address.query.filter_by(id=id, user_id=current_user.id).first()
-    if not address:
-        return jsonify({'error': 'Address not found or unauthorized'}), 404
-    db.session.delete(address)
-    db.session.commit()
-    return jsonify({'detail': 'Address removed.'})
 
 
 @account.delete('/delete-account')
@@ -277,25 +208,7 @@ def delete_account():
 def get_user_detail(): 
     user_email = get_jwt_identity()
     current_user = User.query.filter_by(email=user_email).first()
-
-    addresses = Address.query.filter_by(user_id=user_email).all()
-
-    # Serialize addresses into a list of dictionaries
-    serialized_addresses = [
-        {
-            'id': address.id,
-            'full_name': address.full_name,
-            'street': address.street,
-            'city': address.city,
-            'state': address.state,
-            'zip_code': address.zip_code,
-            'country': address.country,
-            'phone_number': address.phone_number,
-        }
-        for address in addresses
-    ]
-
-    return jsonify({'username': current_user.username, 'profile picture': current_user.profile_pic, 'Addresses': serialized_addresses}), 200
+    return jsonify({'username': current_user.username, 'profile picture': current_user.profile_pic}), 200
     
 
 @account.patch('/edit-account')
@@ -326,3 +239,33 @@ def edit_account():
             return jsonify({'error': 'Invalid file type'}), 400
     return jsonify({'detail': 'Account updated'}), 200
     
+
+@account.get('/my-orders')
+@jwt_required()
+def get_my_orders():
+    email = get_jwt_identity()
+    user = User.query.filter_by(email=email).first()
+    orders = Order.query.filter_by(user_id=user.id).all()
+    if orders is None:
+        return jsonify({'detail': 'You have not placed an order yet.'}), HTTP_204_NO_CONTENT
+    my_orders = [
+            {
+                'order_number': order.order_number,
+                'order_status': order.order_status.value,
+                'order_placed': order.created_at,
+                'total_price': order.total_price,
+                'purchases': [{
+                    'name': order_item.name,
+                    'price': order_item.price,
+                    'image': ProductImage.query.filter_by(product_id=order_item.product_id) \
+                               .order_by(ProductImage.id.desc()) \
+                               .first().image_path,
+                    'quantity': order_item.quantity,
+                    'order_id': order_item.order_id,
+                    'product_id': order_item.product_id
+                } for order_item in OrderItem.query.filter_by(order_id=order.id)
+                ]
+
+            } for order in orders
+        ]
+    return jsonify(my_orders=my_orders), HTTP_200_OK
