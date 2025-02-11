@@ -3,7 +3,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from http_status_code import *
 import os
  
-from models import User, Product, Cart, CartItem
+from models import User, Product, Cart, CartItem, ProductImage
 from models import db
 
 import uuid
@@ -21,8 +21,13 @@ def add_to_cart():
         return jsonify({'error': 'Product ID is required'}), 400
 
     product = Product.query.get(product_id)
+
+    if product.quantity == 0:
+        return jsonify({'error': 'Out of stock'}), 400
+
     if not product:
         return jsonify({'error': 'Product not found'}), 404
+    
 
     if quantity > product.quantity:
         return jsonify({'error': 'Not enough stock'}), 400
@@ -53,7 +58,10 @@ def add_to_cart():
     # Check if the product is already in the cart
     cart_item = CartItem.query.filter_by(cart_id=cart.id, product_id=product_id).first()
     if cart_item:
-        cart_item.quantity += quantity
+        if product.quantity > cart_item.quantity:
+            cart_item.quantity += quantity
+        else:
+            return jsonify({'error': 'Not enough stock'}), 400
     else:
         cart_item = CartItem(cart_id=cart.id, product_id=product_id, quantity=quantity)
         db.session.add(cart_item)
@@ -160,9 +168,10 @@ def view_cart():
         {
             'product_id': item.product_id,
             'product_name': item.product.name,
-            'quantity': item.product.quantity,
+            'quantity': item.quantity,
             'price': item.product.price,
             'avg_rating': item.product.avg_rating,
+            'image': ProductImage.query.filter_by(product_id=item.product_id).first().image_path
         } for item in cart_items
     ]
 
