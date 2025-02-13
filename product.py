@@ -6,7 +6,7 @@ import os
 
 from werkzeug.utils import secure_filename
 
-from models import User, Product, ProductImage
+from models import User, Product, ProductImage, ProductReview, Order, OrderItem
 from utils import allowed_file
 from models import db
 
@@ -176,7 +176,7 @@ def get_all_products():
                 "price": float(product.price),
                 "category": product.category,
                 "brand": product.brand,
-                "avg_rating": float(product.avg_rating) if product.avg_rating else 0,
+                "avg_rating": float(product.avg_rating),
             }
             for product in products.items
         ]
@@ -214,6 +214,52 @@ def search_product():
         "has_prev": results.has_prev
     })
 
+@product_bp.post('/create-product-review/<int:product_id>')
+@jwt_required()
+def create_product_review(product_id):
+    email = get_jwt_identity()
+    user = User.query.filter_by(email=email).first()
+    product = Product.query.filter_by(id=product_id).first_or_404()
 
+    # Check to see if user have already posted a review
+    if ProductReview.query.filter_by(user_id=user.id, product_id=product.id).first():
+        return jsonify({'detail': 'You have already post a review for this product'}), HTTP_400_BAD_REQUEST
+    
+    my_orders = Order.query.filter_by(user_id=user.id)
+    review = request.json['review']
+    rating = request.json['rating']
 
+    # Check to see if the user have purchased this product
+    purchased = False
+    for order in my_orders:
+        order_item = OrderItem.query.filter_by(order_id=order.id).first()
+        if order_item.product_id == product.id:
+            purchased = True
+            break
 
+    if purchased:
+        if 1 <= rating <= 5:
+            product_review = ProductReview(user_id=user.id, product_id=product.id, 
+                                        review=review, rating=rating)
+            db.session.add(product_review)
+            db.session.flush()
+            product.calculate_avg_rating()
+            db.session.commit()
+            return jsonify({'detail': 'Review posted.'}), HTTP_201_CREATED
+        return jsonify({'detail': 'Invalid rating'}), HTTP_404_NOT_FOUND
+    return jsonify({'detail': 'You need to purchase this product to leave a review.'}), HTTP_400_BAD_REQUEST
+    
+
+@product_bp.get('/get-product-reviews/<int:product_id>')
+def get_product_reviews(product_id):
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    product_review_pagination = ProductReview.query.filter_by(product_id=product_id).paginate(page=page, per_page=per_page, error_out=False)
+    reviews = [
+        {
+        "username": review.user.username,
+        "rating": review.rating,
+        "review": review.review
+    } for review in product_review_pagination
+    ]
+    return jsonify(reviews=reviews), HTTP_200_OK
