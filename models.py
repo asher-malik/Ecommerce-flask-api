@@ -2,6 +2,8 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from slugify import slugify 
 from sqlalchemy.orm import validates
+from sqlalchemy import func
+
 import enum
 
 import random
@@ -53,6 +55,22 @@ class Product(db.Model):
         """Automatically generate a slug when the category is updated or created."""
         self.category_slug = slugify(value)
         return value
+    
+    def calculate_avg_rating(self):
+        # Fetch all reviews for this product
+        reviews = ProductReview.query.filter_by(product_id=self.id).all()
+
+        if not reviews:
+            # If there are no reviews, set avg_rating to 0
+            self.avg_rating = 0
+        else:
+            # Calculate the average rating
+            total_ratings = sum(review.rating for review in reviews)
+            avg_rating = total_ratings / len(reviews)
+            self.avg_rating = round(avg_rating, 2)  # Round to 2 decimal places
+
+        # Save the updated avg_rating to the database
+        db.session.commit()
 
 class ProductImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
