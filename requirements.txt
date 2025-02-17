@@ -1,0 +1,8 @@
+Flask==3.1.0
+Flask-Dance==7.1.0
+Flask-JWT-Extended==4.7.1
+Flask-Mail==0.10.0
+Flask-Migrate==4.1.0
+Flask-SQLAlchemy==3.1.1
+psycopg2-binary==2.9.10
+validators==0.34.0
