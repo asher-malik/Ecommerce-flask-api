@@ -7,4 +7,5 @@ Flask-SQLAlchemy==3.1.1
 psycopg2-binary==2.9.10
 validators==0.34.0
 python-dotenv==1.0.1
+python-slugify==8.0.4
 gunicorn==21.2.0
