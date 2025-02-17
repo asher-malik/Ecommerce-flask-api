@@ -63,8 +63,8 @@ def create_payment():
             "description": "Payment for products in your cart."
         }],
         "redirect_urls": {
-            "return_url": f"{request.host_url}/api/order/execute-payment/" + order.order_number,  # Replace with your frontend URL
-            "cancel_url": f"{request.host_url}/api/order/cancel-payment/" + order.order_number  # Replace with your frontend URL
+            "return_url": f"{request.host_url}api/order/execute-payment/" + order.order_number,  # Replace with your frontend URL
+            "cancel_url": f"{request.host_url}api/order/cancel-payment/" + order.order_number  # Replace with your frontend URL
         }
     })
 
